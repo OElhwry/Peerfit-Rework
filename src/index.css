@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+.form-container {
+  @apply min-h-screen flex items-center justify-center bg-gray-50 p-4;
+}
+
+.form-card {
+  @apply w-full max-w-md bg-white shadow-lg rounded-lg p-8 space-y-6;
+}
+
+.form-title {
+  @apply text-2xl font-bold text-center;
+}
+
+.form-field {
+  @apply w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.form-error {
+  @apply text-red-600 text-sm mt-1;
+}
+
+.form-button {
+  @apply w-full py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition;
+}
+
+.form-add-btn {
+  @apply text-blue-600 hover:text-blue-800 text-sm underline;
+}
