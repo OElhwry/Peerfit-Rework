@@ -1,13 +1,36 @@
 // src/pages/Home.jsx
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Link, useNavigate } from 'react-router-dom'
-import { auth } from '../../firebase-config'
+import { auth, db } from '../../firebase-config'
 import { signOut } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
 
 export default function Home() {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
+
+  // 1) Local state for sports
+  const [sports, setSports] = useState([])
+
+  // 2) Fetch the user's sports on mount (once we know currentUser.uid)
+  useEffect(() => {
+    if (!currentUser) return
+
+    async function loadSports() {
+      try {
+        const snap = await getDoc(doc(db, 'users', currentUser.uid))
+        if (snap.exists()) {
+          const data = snap.data()
+          setSports(data.sports || [])
+        }
+      } catch (err) {
+        console.error('Failed loading sports:', err)
+      }
+    }
+
+    loadSports()
+  }, [currentUser])
 
   const handleSignOut = async () => {
     await signOut(auth)
@@ -23,19 +46,37 @@ export default function Home() {
           : 'No user is currently logged in.'}
       </p>
 
-      <Link
-        to="/profile"
-        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-      >
-        Create / Edit Profile
-      </Link>
+      {/* 3) Sports card */}
+      <div className="bg-white p-4 rounded shadow w-full max-w-md">
+        <h2 className="font-semibold mb-2">Your Sports</h2>
+        {sports.length === 0 ? (
+          <p className="text-sm text-gray-500">No sports added yet.</p>
+        ) : (
+          <ul className="list-disc pl-5 text-gray-700">
+            {sports.map((s, i) => (
+              <li key={i}>
+                {s.sport} — {s.skillLevel}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-      <button
-        onClick={handleSignOut}
-        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-      >
-        Sign Out
-      </button>
+      {/* 4) Action buttons */}
+      <div className="flex flex-wrap gap-3 justify-center mt-4">
+        <Link to="/profile" className="btn-green">
+          Edit Profile
+        </Link>
+        <Link to="/matches" className="btn-indigo">
+          Find Matches
+        </Link>
+        <Link to="/matches" className="btn-blue">
+          View All Matches
+        </Link>
+        <button onClick={handleSignOut} className="btn-red">
+          Sign Out
+        </button>
+      </div>
     </div>
   )
 }

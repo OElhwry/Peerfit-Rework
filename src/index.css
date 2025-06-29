@@ -27,3 +27,9 @@
 .form-add-btn {
   @apply text-blue-600 hover:text-blue-800 text-sm underline;
 }
+
+.btn-green  { @apply px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700; }
+.btn-indigo { @apply px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700; }
+.btn-blue   { @apply px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700; }
+.btn-red    { @apply px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700; }
+.btn-gray   { @apply px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700; }
