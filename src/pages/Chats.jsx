@@ -1,141 +1,135 @@
 // src/pages/Chats.jsx
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import {
   collection,
   query,
   where,
   orderBy,
   onSnapshot,
-  getDocs,
-  doc,
   getDoc,
+  doc,
 } from 'firebase/firestore'
 import { db } from '../../firebase-config'
-import { useAuth } from '../contexts/AuthContext'
 
 export default function Chats() {
-  const { currentUser } = useAuth()
+  const { currentUser, getOrCreateChat } = useAuth()
   const [chats, setChats] = useState([])
-  const [error, setError] = useState(null)
+  const [following, setFollowing] = useState([])
+  const [usernames, setUsernames] = useState({})
+  const navigate = useNavigate()
 
+  // 1) Subscribe to your existing chats
   useEffect(() => {
     if (!currentUser) return
-
-    console.log(`🔍 Setting up listener for chats containing ${currentUser.uid}`)
-
-    // 1) Try the real‐time listener first
     const q = query(
       collection(db, 'chats'),
       where('participants', 'array-contains', currentUser.uid),
       orderBy('lastUpdated', 'desc')
     )
-
-    const unsubscribe = onSnapshot(
-      q,
-      async snapshot => {
-        console.log('📬 onSnapshot docs:', snapshot.docs.map(d => d.id))
-
-        if (snapshot.docs.length === 0) {
-          // Fallback: one‐time getDocs to see if query itself returns anything
-          console.log('📥 No docs in onSnapshot—running getDocs fallback…')
-          try {
-            const fallbackSnap = await getDocs(
-              query(
-                collection(db, 'chats'),
-                where('participants', 'array-contains', currentUser.uid)
-                // note: omit orderBy here if it’s an indexing issue
-              )
-            )
-            console.log('📥 getDocs returned:', fallbackSnap.docs.map(d => d.id))
-            if (fallbackSnap.docs.length === 0) {
-              console.warn('⚠️ No chat documents at all for this user.')
-              setChats([])
-              return
-            } else {
-              // proceed to enrich fallbackSnap.docs
-              await enrichAndSet(fallbackSnap.docs)
-              return
-            }
-          } catch (e) {
-            console.error('❌ getDocs fallback error:', e)
-            setError(e.message)
-            return
-          }
-        }
-
-        // If we got here, onSnapshot has docs—enrich them
-        await enrichAndSet(snapshot.docs)
-      },
-      err => {
-        console.error('❌ onSnapshot error:', err)
-        setError(err.message)
-      }
+    return onSnapshot(q, snap =>
+      setChats(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     )
-
-    return () => unsubscribe()
   }, [currentUser])
 
-  // Helper to enrich a list of docSnaps into name‐labeled chats
-  async function enrichAndSet(docSnaps) {
-    const enriched = await Promise.all(
-      docSnaps.map(async docSnap => {
-        const data = docSnap.data()
-        const otherUids = data.participants.filter(uid => uid !== currentUser.uid)
+  // 2) Load your follow list
+  useEffect(() => {
+    if (!currentUser) return
+    getDoc(doc(db, 'users', currentUser.uid)).then(u => {
+      setFollowing(u.data()?.following || [])
+    })
+  }, [currentUser])
 
-        const otherNames = await Promise.all(
-          otherUids.map(async uid => {
-            try {
-              const userSnap = await getDoc(doc(db, 'users', uid))
-              if (userSnap.exists()) {
-                const u = userSnap.data()
-                return u.displayName || u.email
-              }
-            } catch (e) {
-              console.warn(`⚠️ Could not load user ${uid}:`, e)
-            }
-            return uid
-          })
-        )
+  // 3) Fetch other users' usernames
+  useEffect(() => {
+    const ids = new Set()
 
-        return {
-          id: docSnap.id,
-          otherNames,
-          lastUpdated: data.lastUpdated?.toDate?.().toLocaleString(),
-        }
-      })
-    )
+    // from existing chats
+    chats.forEach(c => {
+      const other = c.participants.find(id => id !== currentUser.uid)
+      if (other) ids.add(other)
+    })
 
-    console.log('✅ Final enriched chats:', enriched)
-    setChats(enriched)
+    // from followees not yet chatted with
+    following.forEach(id => {
+      const inChat = chats.some(c => c.participants.includes(id))
+      if (!inChat) ids.add(id)
+    })
+
+    ids.forEach(id => {
+      if (!usernames[id]) {
+        getDoc(doc(db, 'users', id)).then(snap => {
+          const data = snap.data() || {}
+          setUsernames(prev => ({
+            ...prev,
+            [id]: data.username || data.displayName || id,
+          }))
+        })
+      }
+    })
+  }, [chats, following, currentUser.uid, usernames])
+
+  // Start or resume chat
+  const startChat = async otherUid => {
+    const chatId = await getOrCreateChat(currentUser.uid, otherUid)
+    navigate(`/chats/${chatId}`)
   }
 
-  if (!currentUser) return null
+  // Who you've already chatted with
+  const chattedWith = new Set(
+    chats.flatMap(c => c.participants.filter(id => id !== currentUser.uid))
+  )
+  const notYet = following.filter(id => !chattedWith.has(id))
 
   return (
-    <div className="p-4 space-y-2">
-      <h1 className="text-xl font-bold">Your Chats</h1>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-2xl mx-auto space-y-8">
+        {/* Page Title */}
+        <h1 className="text-3xl font-bold text-center">Your Chats</h1>
 
-      {error && (
-        <p className="text-red-600">Error loading chats: {error}</p>
-      )}
+        {/* Existing Chats */}
+        {chats.length > 0 ? (
+          <div className="space-y-4">
+            {chats.map(c => {
+              const other = c.participants.find(id => id !== currentUser.uid)
+              return (
+                <Link
+                  key={c.id}
+                  to={`/chats/${c.id}`}
+                  className="flex items-center justify-between p-4 bg-white rounded-lg shadow hover:shadow-md transition"
+                >
+                  <span className="font-medium">
+                    {usernames[other] || other}
+                  </span>
+                  <span className="text-sm text-gray-500">View →</span>
+                </Link>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="text-center text-gray-500">
+            You have no active chats.
+          </p>
+        )}
 
-      {!error && chats.length === 0 && (
-        <p className="text-gray-500">You have no chats yet.</p>
-      )}
-
-      {chats.map(c => (
-        <Link
-          key={c.id}
-          to={`/chats/${c.id}`}
-          className="block p-3 bg-white rounded shadow hover:bg-gray-100"
-        >
-          Chat with {c.otherNames.join(', ')}
-          <span className="block text-xs text-gray-400">
-            Last updated: {c.lastUpdated}
-          </span>
-        </Link>
-      ))}
+        {/* New Chats With Followees */}
+        {notYet.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold">Start a new chat</h2>
+            {notYet.map(id => (
+              <button
+                key={id}
+                onClick={() => startChat(id)}
+                className="w-full text-left p-4 bg-white rounded-lg shadow hover:shadow-md transition flex items-center justify-between"
+              >
+                <span>{usernames[id] || id}</span>
+                <span className="text-sm text-indigo-600">Message →</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

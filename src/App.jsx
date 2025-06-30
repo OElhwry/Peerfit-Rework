@@ -1,15 +1,16 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
-import Layout from './components/Layout'         
-import Home from './pages/Home'
-import Profile from './pages/Profile'
+
+import Layout   from './components/Layout'
+import Home     from './pages/Home'
+import Profile  from './pages/Profile'
 import ViewProfile from './pages/ViewProfile'
-import Matches from './pages/Matches'
-import Chats from './pages/Chats'
+import Matches  from './pages/Matches'
+import Chats    from './pages/Chats'
 import ChatRoom from './pages/ChatRoom'
-import Login from './pages/Login'
-import SignUp from './pages/SignUp'
+import Login    from './pages/Login'
+import SignUp   from './pages/SignUp'
 
 export default function App() {
   const { currentUser } = useAuth()
@@ -17,24 +18,13 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        {/* Public */}
-        <Route
-          path="/login"
-          element={!currentUser ? <Login /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/signup"
-          element={!currentUser ? <SignUp /> : <Navigate to="/" replace />}
-        />
 
-        {/* Protected: all of these share the same sidebar/layout */}
-        <Route
-          element={
-            currentUser
-              ? <Layout />
-              : <Navigate to="/login" replace />
-          }
-        >
+        {/* public routes */}
+        <Route path="/login"  element={!currentUser ? <Login />  : <Navigate to="/" />} />
+        <Route path="/signup" element={!currentUser ? <SignUp /> : <Navigate to="/" />} />
+
+        {/* everything _below_ here is protected and shares the sidebar + layout */}
+        <Route element={ currentUser ? <Layout /> : <Navigate to="/login" /> }>
           <Route path="/"                element={<Home />} />
           <Route path="/profile"         element={<Profile />} />
           <Route path="/profile/:userId" element={<ViewProfile />} />
@@ -43,11 +33,8 @@ export default function App() {
           <Route path="/chats/:chatId"   element={<ChatRoom />} />
         </Route>
 
-        {/* Fallback for any unmatched route */}
-        <Route
-          path="*"
-          element={<Navigate to={currentUser ? "/" : "/login"} replace />}
-        />
+        {/* catch‐all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   )

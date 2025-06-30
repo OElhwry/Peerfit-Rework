@@ -1,9 +1,13 @@
 // src/pages/Profile.jsx
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { db, auth } from '../../firebase-config'
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from 'firebase/firestore'
+import { db } from '../../firebase-config'
 
 const SPORT_OPTIONS = [
   'Soccer',
@@ -11,30 +15,22 @@ const SPORT_OPTIONS = [
   'Tennis',
   'Volleyball',
   'Running',
-  // …add more as desired
+  // …add more
 ]
-const LEVEL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced']
 
 export default function Profile() {
   const { currentUser } = useAuth()
-  const navigate = useNavigate()
-
-  // form state
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     displayName: '',
     location: '',
-    sports: [{ sport: '', skillLevel: '' }],
+    sports: [{ sport: '', skillLevel: '', yearsPlaying: 0 }],
   })
 
-  // loading & saving indicators
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-
-  // load existing profile once
+  // load existing profile
   useEffect(() => {
-    if (!currentUser) return
-
-    async function loadProfile() {
+    async function load() {
       try {
         const snap = await getDoc(doc(db, 'users', currentUser.uid))
         if (snap.exists()) {
@@ -46,39 +42,43 @@ export default function Profile() {
         setLoading(false)
       }
     }
+    load()
+  }, [currentUser.uid])
 
-    loadProfile()
-  }, [currentUser])
-
-  // handlers
   const handleChange = (idx, field, value) => {
     setForm(f => {
-      const newSports = [...f.sports]
-      newSports[idx] = { ...newSports[idx], [field]: value }
-      return { ...f, sports: newSports }
+      const sports = [...f.sports]
+      sports[idx] = { ...sports[idx], [field]: value }
+      return { ...f, sports }
     })
   }
 
-  const addSport = () => {
+  const addSport = () =>
     setForm(f => ({
       ...f,
-      sports: [...f.sports, { sport: '', skillLevel: '' }],
+      sports: [...f.sports, { sport: '', skillLevel: '', yearsPlaying: 0 }],
     }))
-  }
 
-  const removeSport = idx => {
+  const removeSport = idx =>
     setForm(f => ({
       ...f,
       sports: f.sports.filter((_, i) => i !== idx),
     }))
-  }
 
   const handleSubmit = async e => {
     e.preventDefault()
     setSaving(true)
     try {
-      await setDoc(doc(db, 'users', currentUser.uid), form, { merge: true })
-      navigate('/')
+      await setDoc(
+        doc(db, 'users', currentUser.uid),
+        {
+          displayName: form.displayName,
+          location: form.location,
+          sports: form.sports,
+          lastUpdated: serverTimestamp(),
+        },
+        { merge: true }
+      )
     } catch (err) {
       console.error('Error saving profile:', err)
     } finally {
@@ -86,111 +86,153 @@ export default function Profile() {
     }
   }
 
-
-  if (loading) return <p className="p-4">Loading profile…</p>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500">Loading your profile…</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="form-container">
-      <form onSubmit={handleSubmit} className="form-card space-y-4">
-        {/* Name + Location */}
-        <h2 className="form-title">Your Profile</h2>
-        <input
-          placeholder="Name"
-          value={form.displayName}
-          onChange={e =>
-            setForm(f => ({ ...f, displayName: e.target.value }))
-          }
-          className="form-field"
-          required
-        />
-        <input
-          placeholder="Location"
-          value={form.location}
-          onChange={e =>
-            setForm(f => ({ ...f, location: e.target.value }))
-          }
-          className="form-field"
-          required
-        />
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-lg p-8 space-y-6">
+        <h2 className="text-2xl font-bold text-center">Your Profile</h2>
 
-        {/* Sports selectors */}
-        {form.sports.map((entry, idx) => {
-          // build list of sports taken by other entries
-          const taken = form.sports
-            .filter((_, i) => i !== idx)
-            .map(e => e.sport)
-            .filter(Boolean)
+        {/* Full Name */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Full Name
+          </label>
+          <input
+            type="text"
+            value={form.displayName}
+            onChange={e =>
+              setForm(f => ({ ...f, displayName: e.target.value }))
+            }
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring"
+            required
+          />
+        </div>
 
-          // available = all options minus those taken (plus current value)
-          const available = SPORT_OPTIONS.filter(
-            s => !taken.includes(s) || s === entry.sport
-          )
+        {/* Location */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Location
+          </label>
+          <input
+            type="text"
+            value={form.location}
+            onChange={e =>
+              setForm(f => ({ ...f, location: e.target.value }))
+            }
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring"
+            required
+          />
+        </div>
 
-          return (
-            <div key={idx} className="flex items-center space-x-2">
-              <select
-                value={entry.sport}
-                onChange={e => handleChange(idx, 'sport', e.target.value)}
-                className="form-field flex-1"
-                required
-              >
-                <option value="" disabled>
-                  Pick a sport
-                </option>
-                {available.map(s => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={entry.skillLevel}
-                onChange={e =>
-                  handleChange(idx, 'skillLevel', e.target.value)
-                }
-                className="form-field flex-1"
-                required
-              >
-                <option value="" disabled>
-                  Skill
-                </option>
-                {LEVEL_OPTIONS.map(l => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-
-              {form.sports.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeSport(idx)}
-                  className="text-red-600 px-2"
+        {/* Sports List */}
+        <div className="space-y-4">
+          {form.sports.map((entry, idx) => {
+            // filter out already-selected sports
+            const taken = form.sports
+              .map((s, i) => (i !== idx ? s.sport : null))
+              .filter(Boolean)
+            const available = SPORT_OPTIONS.filter(
+              s => !taken.includes(s) || s === entry.sport
+            )
+            return (
+              <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                {/* Sport */}
+                <select
+                  value={entry.sport}
+                  onChange={e =>
+                    handleChange(idx, 'sport', e.target.value)
+                  }
+                  className="col-span-5 p-2 border rounded-lg focus:outline-none focus:ring"
+                  required
                 >
-                  ×
-                </button>
-              )}
-            </div>
-          )
-        })}
+                  <option value="" disabled>
+                    Pick a sport
+                  </option>
+                  {available.map(s => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
 
-        {/* Add another + Save */}
+                {/* Skill Level */}
+                <select
+                  value={entry.skillLevel}
+                  onChange={e =>
+                    handleChange(idx, 'skillLevel', e.target.value)
+                  }
+                  className="col-span-4 p-2 border rounded-lg focus:outline-none focus:ring"
+                  required
+                >
+                  <option value="" disabled>
+                    Skill level
+                  </option>
+                  {['Beginner', 'Intermediate', 'Advanced'].map(l => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+
+                  {/* Years Playing */}
+                  <div className="col-span-2 flex items-center">
+                    <input
+                      type="number"
+                      min={0}
+                      value={entry.yearsPlaying}
+                      onChange={e =>
+                        handleChange(idx, 'yearsPlaying', Number(e.target.value))
+                      }
+                      className="w-16 p-2 border rounded-lg focus:outline-none focus:ring"
+                      placeholder="0"
+                      required
+                    />
+                    <span className="ml-2 text-gray-600 text-sm">yrs</span>
+                  </div>
+
+
+                {/* Remove Button */}
+                {form.sports.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSport(idx)}
+                    className="col-span-1 text-red-600 text-xl"
+                    title="Remove sport"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            )
+          })}
+
+          <button
+            type="button"
+            onClick={addSport}
+            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+          >
+            + Add another sport
+          </button>
+        </div>
+
+        {/* Save */}
         <button
-          type="button"
-          onClick={addSport}
-          className="form-add-btn"
-        >
-          + Add another sport
-        </button>
-        <button
-          type="submit"
+          onClick={handleSubmit}
           disabled={saving}
-          className={`form-button ${saving ? 'opacity-50' : ''}`}
+          className={`w-full py-3 rounded-lg text-white font-medium transition ${
+            saving ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'
+          }`}
         >
           {saving ? 'Saving…' : 'Save Profile'}
         </button>
-      </form>
+      </div>
     </div>
   )
 }
