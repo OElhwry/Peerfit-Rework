@@ -19,6 +19,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../../firebase-config'
+import RecommendedFollows from '../components/RecommendedFollows'
 
 /** Single reply node with nested children */
 function ReplyNode({ reply, postId, currentUser, depth }) {
@@ -332,6 +333,10 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+
+      {/* Recommended to follow */}
+      <RecommendedFollows />
 
         {/* Posts Feed */}
         {loadingPosts ? (

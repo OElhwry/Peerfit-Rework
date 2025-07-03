@@ -28,7 +28,7 @@ export default function ViewProfile() {
 
   // Load user & follow status
   useEffect(() => {
-    const loadUser = async () => {
+    async function loadUser() {
       const snap = await getDoc(doc(db, 'users', userId))
       if (snap.exists()) {
         const data = snap.data()
@@ -54,14 +54,14 @@ export default function ViewProfile() {
   // Follow / unfollow
   const toggleFollow = async () => {
     setWorking(true)
-    const meRef   = doc(db, 'users', currentUser.uid)
+    const meRef = doc(db, 'users', currentUser.uid)
     const themRef = doc(db, 'users', userId)
     try {
       if (isFollowing) {
-        await updateDoc(meRef,   { following: arrayRemove(userId) })
+        await updateDoc(meRef, { following: arrayRemove(userId) })
         await updateDoc(themRef, { followers: arrayRemove(currentUser.uid) })
       } else {
-        await updateDoc(meRef,   { following: arrayUnion(userId) })
+        await updateDoc(meRef, { following: arrayUnion(userId) })
         await updateDoc(themRef, { followers: arrayUnion(currentUser.uid) })
       }
       setIsFollowing(!isFollowing)
@@ -89,21 +89,38 @@ export default function ViewProfile() {
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Profile Header */}
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white shadow rounded-lg p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">{user.displayName}</h1>
-              <p className="text-indigo-600">@{user.username}</p>
+            <div className="flex items-center space-x-4">
+              {/* Avatar */}
+              {user.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={`${user.displayName}’s avatar`}
+                  className="w-20 h-20 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-20 h-20 bg-gray-200 rounded-full" />
+              )}
+              <div>
+                <h1 className="text-3xl font-bold text-gray-800">
+                  {user.displayName}
+                </h1>
+                <p className="text-indigo-600">@{user.username}</p>
+              </div>
             </div>
+
+            {/* Follow / Message */}
             {currentUser.uid !== userId && (
               <div className="flex space-x-3">
                 <button
                   onClick={toggleFollow}
                   disabled={working}
-                  className={`px-4 py-2 rounded-lg text-white font-medium transition
-                    ${isFollowing
+                  className={`px-4 py-2 rounded-lg text-white font-medium transition ${
+                    isFollowing
                       ? 'bg-red-600 hover:bg-red-700'
-                      : 'bg-blue-600 hover:bg-blue-700'}`}
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
                   {isFollowing ? 'Unfollow' : 'Follow'}
                 </button>
@@ -118,28 +135,43 @@ export default function ViewProfile() {
           </div>
 
           {/* Stats */}
-          <div className="mt-4 flex space-x-8 text-gray-700">
+          <div className="flex justify-around text-center text-gray-700">
             <div>
-              <span className="font-semibold">{user.followers?.length || 0}</span>
-              <p className="text-sm">Followers</p>
+              <span className="block text-xl font-semibold">
+                {user.followers?.length || 0}
+              </span>
+              <span className="text-sm">Followers</span>
             </div>
             <div>
-              <span className="font-semibold">{user.following?.length || 0}</span>
-              <p className="text-sm">Following</p>
+              <span className="block text-xl font-semibold">
+                {user.following?.length || 0}
+              </span>
+              <span className="text-sm">Following</span>
             </div>
             <div>
-              <span className="font-semibold">{posts.length}</span>
-              <p className="text-sm">Posts</p>
+              <span className="block text-xl font-semibold">{posts.length}</span>
+              <span className="text-sm">Posts</span>
             </div>
           </div>
+
+          {/* Bio & Interests */}
+          {user.bio && <p className="text-gray-700">{user.bio}</p>}
+          {user.interests && (
+            <p className="text-sm text-gray-500">
+              <span className="font-medium">Interests:</span> {user.interests}
+            </p>
+          )}
         </div>
 
         {/* Posts */}
         <section className="space-y-4">
-          <h2 className="text-2xl font-semibold">Posts</h2>
+          <h2 className="text-2xl font-semibold text-gray-800">Posts</h2>
           {posts.length ? (
             posts.map(p => (
-              <div key={p.id} className="bg-white shadow rounded-lg p-4">
+              <div
+                key={p.id}
+                className="bg-white shadow rounded-lg p-4 hover:shadow-md transition"
+              >
                 <time
                   dateTime={p.createdAt?.toDate().toISOString()}
                   className="block text-xs text-gray-500 mb-1"
