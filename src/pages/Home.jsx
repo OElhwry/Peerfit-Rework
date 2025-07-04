@@ -26,9 +26,15 @@ function ReplyNode({ reply, postId, currentUser, depth }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
 
+  
+
   const handleReply = async () => {
     if (!text.trim()) return
-    await addDoc(collection(db, 'posts', postId, 'replies'), {
+    await addDoc(collection(db, 'posts', postId, 'replies', 'notifications'), {
+      recipientId: mentionedUid,
+      type: 'mention', postId,
+      commentId: newCommentId,
+      read: false,
       authorId: currentUser.uid,
       authorUsername: currentUser.username,
       content: text.trim(),

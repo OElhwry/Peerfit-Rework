@@ -4,6 +4,19 @@ import { HiHome, HiUser, HiUsers, HiChat, HiOutlineLogout } from "react-icons/hi
 import { useAuth } from "../contexts/AuthContext"
 import { signOut } from "firebase/auth"
 import { auth } from "../../firebase-config"
+import NotificationBell from './NotificationBell'
+
+function Header() {
+  return (
+    <header className="flex items-center justify-between p-4 bg-white shadow">
+      <h1 className="text-lg font-semibold">PeerFit</h1>
+      <div className="flex items-center space-x-4">
+        <NotificationBell />
+      </div>
+    </header>
+  )
+}
+
 
 export default function Sidebar() {
   const { currentUser } = useAuth()

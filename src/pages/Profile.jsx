@@ -266,7 +266,7 @@ export default function Profile() {
                     ))}
                   </select>
 
-                  <div className="col-span-2 flex items-center">
+                  <div className="col-span-2 flex items-center space-x-2">
                     <input
                       type="number"
                       min={0}
@@ -280,11 +280,12 @@ export default function Profile() {
                           Number(e.target.value)
                         )
                       }
-                      className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring"
+                      className="w-16 p-2 border rounded-lg focus:outline-none focus:ring"
                       required
                     />
-                    <span className="ml-2 text-gray-600 text-sm">yrs</span>
+                    <span className="text-gray-600 text-sm">yrs</span>
                   </div>
+
 
                   {form.sports.length > 1 && (
                     <button
